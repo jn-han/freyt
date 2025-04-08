@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Sen } from "next/font/google";
+import Taskbar from "../components/Sidebar"
 
 import "./globals.css";
 
@@ -23,9 +24,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${sen.variable} antialiased`}
+        className={`${sen.variable} antialiased flex overflow-x-hidden`}
       >
-        {children}
+        <Taskbar />
+        <main className="flex-1  w-full h-screen">{children}</main>
       </body>
     </html>
   );
