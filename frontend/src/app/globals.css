@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap");
 
 :root {
   --background: #ffffff;
@@ -8,7 +9,16 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-primary: var(--font-sen);
+  --font-primary: var(--font-inter);
+}
+
+@theme {
+  --color-background-dark: #e8edf5;
+  --color-background-light: #f7fafc;
+  --color-positive: #08873b;
+  --color-negative: #e83808;
+  --color-unselected-text: #4a709c;
+  --color-btn-avail: #0d78f2;
 }
 
 @media (prefers-color-scheme: dark) {

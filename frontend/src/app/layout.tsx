@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
-import { Sen } from "next/font/google";
-import Taskbar from "../components/Sidebar"
+import { Inter } from "next/font/google";
+import Taskbar from "../components/Sidebar";
 
 import "./globals.css";
 
-const sen = Sen({
-  variable: "--font-sen",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
-
-
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -23,9 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${sen.variable} antialiased flex overflow-x-hidden`}
-      >
+      <body className={`${inter.variable} antialiased flex overflow-x-hidden`}>
         <Taskbar />
         <main className="flex-1  w-full h-screen">{children}</main>
       </body>
