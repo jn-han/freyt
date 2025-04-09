@@ -21,6 +21,8 @@ type ShipmentData = {
 };
 
 const Dashboard = () => {
+  const [dc01Shipment, setdc01Shipment] = useState<ShipmentData | null>(null);
+  const [dc03Shipment, setdc03Shipment] = useState<ShipmentData | null>(null);
   const [shipment, setShipment] = useState<ShipmentData | null>(null);
   const [error, setError] = useState<string>("");
   const [unitDiff, setUnitDiff] = useState(0);
@@ -32,6 +34,7 @@ const Dashboard = () => {
   const todayDateString = new Date().toISOString().split("T")[0];
 
   const fetchShipment = async () => {
+    console.log(todayDateString);
     try {
       const res = await fetch(
         `http://localhost:8080/shipments/${todayDateString}`
@@ -92,7 +95,7 @@ const Dashboard = () => {
       <div className="w-full flex flex-row justify-between items-center">
         <h1 className="text-2xl font-semibold">Today's Shipment</h1>
         <Link
-          href="/updateShipment"
+          href="/createShipment"
           className="bg-btn-avail px-3 py-2 rounded-xl text-white text-sm"
         >
           Add Shipment Information
