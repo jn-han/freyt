@@ -1,29 +1,31 @@
 "use client";
 
-import ShipmentInfo from "@/components/ShipmentInfo";
+import ShipmentCards from "@/components/ShipmentCards";
 import { useEffect, useState } from "react";
 import React from "react";
 import Link from "next/link";
+import ShipmentMetricCard from "@/components/InfoCard";
 
-type ShipmentData = {
+export interface ShipmentData {
+  _id?: string;
   date: string;
   storeNumber: string;
+  dc: "DC01" | "DC03";
   Projected: {
     units: number;
     hours: number;
     uph: number;
   };
-  Actual: {
+  Actual?: {
     units: number;
     hours: number;
-    uph: number;
+    uph: number | null;
   };
-};
+}
 
 const Dashboard = () => {
-  const [dc01Shipment, setdc01Shipment] = useState<ShipmentData | null>(null);
-  const [dc03Shipment, setdc03Shipment] = useState<ShipmentData | null>(null);
-  const [shipment, setShipment] = useState<ShipmentData | null>(null);
+  const [shipments, setShipments] = useState<ShipmentData[] | null>(null);
+
   const [error, setError] = useState<string>("");
   const [unitDiff, setUnitDiff] = useState(0);
   const [hourDiff, setHourDiff] = useState(0);
@@ -42,45 +44,55 @@ const Dashboard = () => {
 
       if (!res.ok) {
         const { message } = await res.json();
-        setShipment(null);
+        setShipments(null);
         setError(message || "No shipment found for today.");
         return;
       }
 
-      const data: ShipmentData = await res.json();
-      setShipment(data);
+      const data: ShipmentData[] = await res.json();
+      setShipments(data);
       setError("");
     } catch (err) {
       console.error(err);
       setError("Failed to fetch shipment");
-      setShipment(null);
+      setShipments(null);
     }
   };
 
   useEffect(() => {
-    if (!shipment?.Actual || !shipment?.Projected) return;
+    if (!shipments || shipments.length === 0) return;
 
-    const { Actual, Projected } = shipment;
+    // Totals
+    const projUnits = shipments.reduce((sum, s) => sum + s.Projected.units, 0);
+    const projHours = shipments.reduce((sum, s) => sum + s.Projected.hours, 0);
+    const actUnits = shipments.reduce(
+      (sum, s) => sum + (s.Actual?.units || 0),
+      0
+    );
+    const actHours = shipments.reduce(
+      (sum, s) => sum + (s.Actual?.hours || 0),
+      0
+    );
 
+    // Percentage Diffs
     const unitChange =
-      Projected.units !== 0
-        ? ((Actual.units - Projected.units) / Projected.units) * 100
-        : 0;
+      projUnits !== 0 ? ((actUnits - projUnits) / projUnits) * 100 : 0;
 
     const hourChange =
-      Projected.hours !== 0
-        ? ((Actual.hours - Projected.hours) / Projected.hours) * 100
-        : 0;
+      projHours !== 0 ? ((actHours - projHours) / projHours) * 100 : 0;
+
+    const uphProjected = projHours > 0 ? projUnits / projHours : 0;
+    const uphActual = actHours > 0 ? actUnits / actHours : 0;
 
     const uphChange =
-      Projected.uph !== 0
-        ? ((Actual.uph - Projected.uph) / Projected.uph) * 100
+      uphProjected !== 0
+        ? ((uphActual - uphProjected) / uphProjected) * 100
         : 0;
 
     setUnitDiff(parseFloat(unitChange.toFixed(1)));
     setHourDiff(parseFloat(hourChange.toFixed(1)));
     setUphDiff(parseFloat(uphChange.toFixed(1)));
-  }, [shipment]);
+  }, [shipments]);
 
   useEffect(() => {
     fetchShipment();
@@ -103,25 +115,13 @@ const Dashboard = () => {
       </div>
 
       <div className="flex flex-col gap-3 mt-6">
-        {shipment ? (
+        {shipments ? (
           <>
             <div className="flex-1">
-              <ShipmentInfo
-                isProjected
-                units={shipment.Projected.units}
-                hours={shipment.Projected.hours}
-                uph={shipment.Projected.uph}
-              />
+              <ShipmentCards isProjected shipments={shipments} />
             </div>
             <div className="flex-1">
-              <ShipmentInfo
-                units={shipment.Actual?.units ?? null}
-                hours={shipment.Actual?.hours ?? null}
-                uph={shipment.Actual?.uph ?? null}
-                unitDiff={shipment.Actual ? unitDiff : null}
-                hourDiff={shipment.Actual ? hourDiff : null}
-                uphDiff={shipment.Actual ? uphDiff : null}
-              />
+              <ShipmentCards shipments={shipments} />
             </div>
           </>
         ) : (
