@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ShipmentData } from "@/app/dashboard/page";
-import SortableInfoCard from "./SortableInfoCard";
+import { ShipmentData } from "@/types/shipment";
+import SortableInfoCard from "../SortableInfoCard";
+import { Percent, Hash } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
 import {
   DndContext,
   closestCenter,
@@ -16,7 +19,6 @@ import {
   arrayMove,
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import {
   getTotalUnits,
   getTotalHours,
@@ -26,15 +28,15 @@ import {
   getPercentageDiff,
 } from "@/utils/shipmentHelpers";
 
-type ShipmentCardsProps = {
+type ShipmentInfoSectionProps = {
   isProjected?: boolean;
   shipments: ShipmentData[];
 };
 
-const ShipmentCards = ({
+const ShipmentInfoSection = ({
   isProjected = false,
   shipments,
-}: ShipmentCardsProps) => {
+}: ShipmentInfoSectionProps) => {
   const unitTotal = getTotalUnits(shipments, isProjected);
   const hourTotal = Math.round(getTotalHours(shipments, isProjected) * 10) / 10;
   const uphTotal = Math.round((unitTotal / hourTotal) * 10) / 10;
@@ -42,6 +44,7 @@ const ShipmentCards = ({
   const unitBreakdown = getUnitBreakdownByDC(shipments, isProjected);
   const hourBreakdown = getHourBreakdownByDC(shipments, isProjected);
   const uphBreakdown = getUPHBreakdownByDC(shipments, isProjected);
+  const [showPercentage, setShowPercentage] = useState(true);
 
   let unitDiff: number | undefined;
   let hourDiff: number | undefined;
@@ -51,7 +54,7 @@ const ShipmentCards = ({
   let hourDiffAmount: number | undefined;
   let uphDiffAmount: number | undefined;
 
-  const metricOrder = ["Units", "Hours", "UPH"] as const;
+  const metricOrder = ["Units", "Hours Required", "UPH"] as const;
   type Metric = (typeof metricOrder)[number];
 
   const [items, setItems] = useState<Metric[]>([...metricOrder]);
@@ -88,7 +91,21 @@ const ShipmentCards = ({
         }
       }}
     >
-      <p className="text-xl">{isProjected ? "Projected" : "Actual"}</p>
+      <div className="flex flex-row w-full justify-between ">
+        <p className="text-xl">{isProjected ? "Projected" : "Actual"}</p>
+        {!isProjected ? (
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 1.05, rotate: 4 }}
+            className="px-3"
+            onClick={() => setShowPercentage(!showPercentage)}
+          >
+            {showPercentage ? <Percent /> : <Hash />}
+          </motion.div>
+        ) : (
+          ""
+        )}
+      </div>
       <SortableContext items={items} strategy={horizontalListSortingStrategy}>
         <div className="flex flex-row w-full justify-between gap-4 ">
           {items.map((metric) => (
@@ -96,31 +113,32 @@ const ShipmentCards = ({
               key={metric}
               id={metric}
               title={metric}
+              showPercentage={showPercentage}
               total={
                 metric === "Units"
                   ? unitTotal
-                  : metric === "Hours"
+                  : metric === "Hours Required"
                   ? hourTotal
                   : uphTotal
               }
               breakdown={
                 metric === "Units"
                   ? unitBreakdown
-                  : metric === "Hours"
+                  : metric === "Hours Required"
                   ? hourBreakdown
                   : uphBreakdown
               }
               percentage={
                 metric === "Units"
                   ? unitDiff
-                  : metric === "Hours"
+                  : metric === "Hours Required"
                   ? hourDiff
                   : uphDiff
               }
               diffAmount={
                 metric === "Units"
                   ? unitDiffAmount
-                  : metric === "Hours"
+                  : metric === "Hours Required"
                   ? hourDiffAmount
                   : uphDiffAmount
               }
@@ -132,4 +150,4 @@ const ShipmentCards = ({
   );
 };
 
-export default ShipmentCards;
+export default ShipmentInfoSection;

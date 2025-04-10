@@ -1,4 +1,4 @@
-import { ShipmentData } from "@/app/dashboard/page";
+import { ShipmentData } from "@/types/shipment";
 
 export const getTotalUnits = (
   shipments: ShipmentData[],

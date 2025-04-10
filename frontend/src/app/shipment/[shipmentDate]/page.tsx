@@ -2,8 +2,9 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import ShipmentCards from "@/components/ShipmentCards";
+import ShipmentInfoSection from "@/components/shipmentProps/ShipmentInfoSection";
 import Link from "next/link";
+import InfoCardSkeleton from "@/components/shipmentProps/InfoCardSkeleton";
 
 export interface ShipmentData {
   _id?: string;
@@ -29,6 +30,8 @@ const ShipmentPage = () => {
 
   const fetchShipment = async () => {
     try {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       const res = await fetch(
         `http://localhost:8080/shipments/${shipmentDate}`
       );
@@ -73,20 +76,25 @@ const ShipmentPage = () => {
       </div>
 
       <div className="flex flex-col gap-3 mt-6">
-        {shipments ? (
-          <>
-            <div className="flex-1">
-              <ShipmentCards isProjected shipments={shipments} />
-            </div>
-            <div className="flex-1">
-              <ShipmentCards shipments={shipments} />
-            </div>
-          </>
-        ) : (
-          <div className="text-gray-600 italic mt-4">
-            {error || "Loading shipment data..."}
-          </div>
-        )}
+        <div className="flex flex-col gap-3 mt-6">
+          {shipments ? (
+            <>
+              <div className="flex-1">
+                <ShipmentInfoSection isProjected shipments={shipments} />
+              </div>
+              <div className="flex-1">
+                <ShipmentInfoSection shipments={shipments} />
+              </div>
+            </>
+          ) : error ? (
+            <div className="text-gray-600 italic mt-4">{error}</div>
+          ) : (
+            <>
+              <InfoCardSkeleton />
+              <InfoCardSkeleton />
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -21,198 +21,182 @@ interface Shipment {
 }
 
 interface DCBreakdown {
-  [dc: string]: {
-    units: number;
-    hours: number;
-  };
+  [dc: string]: number;
 }
 
 interface AggregatedShipment {
   date: string;
-  dcs: string[];
+  ids: string[];
   projected: {
-    totalUnits: number;
-    totalHours: number;
-    uph: number;
-    byDC: DCBreakdown;
+    units: number;
+    hours: number;
+    avgUph: number;
+    breakdown: DCBreakdown;
   };
   actual?: {
-    totalUnits: number;
-    totalHours: number;
-    uph: number;
-    byDC: DCBreakdown;
+    units: number;
+    hours: number;
+    avgUph: number;
+    breakdown: DCBreakdown;
   };
 }
 
-const ShipmentHistoryPage = () => {
+const ShipmentHistory = () => {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
+  const fetchShipments = async () => {
+    try {
+      const response = await fetch("http://localhost:8080/shipments");
+      const data = await response.json();
+      setShipments(data);
+    } catch (err) {
+      console.error("Fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteByDate = async (isoDate: string) => {
+    // Normalize to YYYY-MM-DD
+    const date = new Date(isoDate).toISOString().split("T")[0];
+
+    const confirmed = window.confirm(`Delete shipments for ${date}?`);
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`http://localhost:8080/shipments/${date}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error("Failed to delete");
+
+      setShipments((prev) =>
+        prev.filter((s) => !new Date(s.date).toISOString().startsWith(date))
+      );
+      alert("Deleted successfully");
+    } catch (err) {
+      console.error(err);
+      alert("Delete failed");
+    }
+  };
   useEffect(() => {
-    const fetchShipments = async () => {
-      try {
-        const response = await fetch("http://localhost:8080/shipments");
-        if (!response.ok) throw new Error("Failed to fetch shipments");
-
-        const data: Shipment[] = await response.json();
-        setShipments(data);
-      } catch (err) {
-        console.error(err);
-        setError("Could not load shipments.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchShipments();
   }, []);
 
-  const groupAndAggregateByDate = (): AggregatedShipment[] => {
-    const grouped: Record<string, AggregatedShipment> = {};
+  const aggregate = (): AggregatedShipment[] => {
+    const map: Record<string, AggregatedShipment> = {};
 
-    for (const shipment of shipments) {
-      const dateKey = new Date(shipment.date).toISOString().split("T")[0];
-
-      if (!grouped[dateKey]) {
-        grouped[dateKey] = {
+    for (const s of shipments) {
+      const dateKey = new Date(s.date).toISOString().split("T")[0];
+      if (!map[dateKey]) {
+        map[dateKey] = {
           date: dateKey,
-          dcs: [],
-          projected: {
-            totalUnits: 0,
-            totalHours: 0,
-            uph: 0,
-            byDC: {},
-          },
+          ids: [],
+          projected: { units: 0, hours: 0, avgUph: 0, breakdown: {} },
         };
       }
+      const entry = map[dateKey];
+      entry.ids.push(s._id);
 
-      const group = grouped[dateKey];
+      entry.projected.units += s.Projected.units;
+      entry.projected.hours += s.Projected.hours;
+      entry.projected.avgUph += s.Projected.uph;
+      entry.projected.breakdown[s.dc] =
+        (entry.projected.breakdown[s.dc] || 0) + s.Projected.units;
 
-      // Track unique DCs
-      if (!group.dcs.includes(shipment.dc)) {
-        group.dcs.push(shipment.dc);
-      }
-
-      // Projected totals
-      group.projected.totalUnits += shipment.Projected.units;
-      group.projected.totalHours += shipment.Projected.hours;
-
-      // Projected breakdown by DC
-      if (!group.projected.byDC[shipment.dc]) {
-        group.projected.byDC[shipment.dc] = { units: 0, hours: 0 };
-      }
-      group.projected.byDC[shipment.dc].units += shipment.Projected.units;
-      group.projected.byDC[shipment.dc].hours += shipment.Projected.hours;
-
-      // Actual totals
-      if (shipment.Actual) {
-        if (!group.actual) {
-          group.actual = {
-            totalUnits: 0,
-            totalHours: 0,
-            uph: 0,
-            byDC: {},
+      if (s.Actual) {
+        if (!entry.actual) {
+          entry.actual = {
+            units: 0,
+            hours: 0,
+            avgUph: 0,
+            breakdown: {},
           };
         }
-
-        group.actual.totalUnits += shipment.Actual.units;
-        group.actual.totalHours += shipment.Actual.hours;
-
-        // Actual breakdown by DC
-        if (!group.actual.byDC[shipment.dc]) {
-          group.actual.byDC[shipment.dc] = { units: 0, hours: 0 };
-        }
-        group.actual.byDC[shipment.dc].units += shipment.Actual.units;
-        group.actual.byDC[shipment.dc].hours += shipment.Actual.hours;
+        entry.actual.units += s.Actual.units;
+        entry.actual.hours += s.Actual.hours;
+        entry.actual.avgUph += s.Actual.uph;
+        entry.actual.breakdown[s.dc] =
+          (entry.actual.breakdown[s.dc] || 0) + s.Actual.units;
       }
     }
 
-    // Finalize UPH calculations
-    return Object.values(grouped).map((entry) => {
-      entry.projected.uph =
-        entry.projected.totalHours > 0
-          ? parseFloat(
-              (entry.projected.totalUnits / entry.projected.totalHours).toFixed(
-                1
-              )
-            )
-          : 0;
-
+    return Object.values(map).map((entry) => {
+      const count = entry.ids.length;
+      entry.projected.avgUph = parseFloat(
+        (entry.projected.avgUph / count).toFixed(1)
+      );
       if (entry.actual) {
-        entry.actual.uph =
-          entry.actual.totalHours > 0
-            ? parseFloat(
-                (entry.actual.totalUnits / entry.actual.totalHours).toFixed(1)
-              )
-            : 0;
+        entry.actual.avgUph = parseFloat(
+          (entry.actual.avgUph / count).toFixed(1)
+        );
       }
-
       return entry;
     });
   };
 
-  const aggregated = groupAndAggregateByDate();
+  const aggregated = aggregate();
 
   if (loading) return <div className="p-4">Loading...</div>;
-  if (error) return <div className="p-4 text-red-600">{error}</div>;
 
   return (
     <div className="px-36 py-20">
       <h1 className="text-3xl font-semibold mb-6">Shipment History</h1>
-
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4">
         {aggregated.map((entry) => (
-          <Link key={entry.date} href={`./shipment/${entry.date}`}>
-            <h2 className="text-xl font-thin mb-2">
-              {new Date(entry.date).toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </h2>
-            <div className="bg-white border rounded-lg p-4 shadow-sm space-y-2">
+          <div
+            key={entry.date}
+            className="relative bg-white border rounded p-6 shadow"
+          >
+            <button
+              onClick={() => deleteByDate(entry.date)}
+              className="absolute top-2 right-3 text-red-600 hover:text-red-800 font-bold"
+            >
+              X
+            </button>
+            <Link href={`./shipment/${entry.date}`}>
+              <h2 className="text-xl font-semibold mb-2 hover:underline">
+                {entry.date.slice(0, 10)}
+              </h2>
+            </Link>
+            <div className="space-y-1">
               <p>
-                <strong>DC(s):</strong> {entry.dcs.join(", ")}
+                <strong>Projected:</strong> {entry.projected.units} units /{" "}
+                {entry.projected.hours} hrs → {entry.projected.avgUph} UPH
               </p>
-
-              <div>
-                <p className="font-semibold">Projected:</p>
-                <p>
-                  {entry.projected.totalUnits} units /{" "}
-                  {entry.projected.totalHours} hrs → {entry.projected.uph} UPH
-                </p>
-                <ul className="ml-4 list-disc text-sm text-gray-700">
-                  {Object.entries(entry.projected.byDC).map(([dc, values]) => (
+              <ul className="ml-4 list-disc text-sm text-gray-700">
+                {Object.entries(entry.projected.breakdown).map(
+                  ([dc, units]) => (
                     <li key={dc}>
-                      {dc}: {values.units} units / {values.hours} hrs
+                      {dc}: {units} units
                     </li>
-                  ))}
-                </ul>
-              </div>
-
+                  )
+                )}
+              </ul>
               {entry.actual && (
-                <div>
-                  <p className="font-semibold">Actual:</p>
+                <>
                   <p>
-                    {entry.actual.totalUnits} units / {entry.actual.totalHours}{" "}
-                    hrs → {entry.actual.uph} UPH
+                    <strong>Actual:</strong> {entry.actual.units} units /{" "}
+                    {entry.actual.hours} hrs → {entry.actual.avgUph} UPH
                   </p>
                   <ul className="ml-4 list-disc text-sm text-gray-700">
-                    {Object.entries(entry.actual.byDC).map(([dc, values]) => (
-                      <li key={dc}>
-                        {dc}: {values.units} units / {values.hours} hrs
-                      </li>
-                    ))}
+                    {Object.entries(entry.actual.breakdown).map(
+                      ([dc, units]) => (
+                        <li key={dc}>
+                          {dc}: {units} units
+                        </li>
+                      )
+                    )}
                   </ul>
-                </div>
+                </>
               )}
             </div>
-          </Link>
+          </div>
         ))}
       </div>
     </div>
   );
 };
 
-export default ShipmentHistoryPage;
+export default ShipmentHistory;

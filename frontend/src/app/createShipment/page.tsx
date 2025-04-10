@@ -10,12 +10,17 @@ const CreateShipmentPage = () => {
   const [projected, setProjected] = useState({ units: "", hours: "" });
   const [actual, setActual] = useState({ units: "", hours: "" });
   const [includeActual, setIncludeActual] = useState(false);
-
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    const localDate = new Date(date);
+    localDate.setHours(0, 0, 0, 0);
+    const isoDate = new Date(
+      localDate.getTime() - localDate.getTimezoneOffset() * 60000
+    ).toISOString();
+
     const formattedShipment: any = {
-      date,
+      date: isoDate,
       storeNumber,
       dc,
       Projected: {
@@ -48,7 +53,6 @@ const CreateShipmentPage = () => {
 
       if (res.ok) {
         alert("Shipment submitted successfully!");
-        // Clear form
         setDate("");
         setStoreNumber("");
         setDc("DC01");
@@ -63,7 +67,6 @@ const CreateShipmentPage = () => {
       alert("Something went wrong!");
     }
   };
-
   return (
     <div className="max-w-xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">Create New Shipment</h1>

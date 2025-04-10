@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import InfoCard from "./InfoCard";
+import InfoCard from "./shipmentProps/InfoCard";
 
 type SortableInfoCardProps = React.ComponentProps<typeof InfoCard> & {
   id: string;

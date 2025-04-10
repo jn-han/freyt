@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "@/context/SidebarContext";
+import Image from "next/image";
 
 const Sidebar = () => {
   const pathName = usePathname();
@@ -53,8 +54,8 @@ const Sidebar = () => {
 
   return (
     <div
-      className={`relative ${
-        isCollapsed ? "w-[5%]" : "w-1/6"
+      className={`sticky top-0 h-screen ${
+        isCollapsed ? "w-[5%]" : "w-1/7"
       } bg-background-light text-black flex flex-col items-center p-3 transition-all duration-300`}
     >
       {/* Collapse Button */}
@@ -72,10 +73,31 @@ const Sidebar = () => {
       </button>
 
       {/* Sidebar Content */}
-      <div className="mt-12 flex flex-col items-center w-full gap-4 px-2">
-        <Link href="/" className="py-4 text-xl font-bold w-full">
-          {isCollapsed ? "Freyt" : "Freyt"}
-        </Link>
+      <div
+        className={`mt-12 flex flex-col ${
+          isCollapsed ? "items-center" : "items-start"
+        } w-full gap-4 px-2`}
+      >
+        <div className="scale-130">
+          <Link href="/" className="">
+            {isCollapsed ? (
+              <Image
+                src="/assets/freytLogo.png"
+                alt="Freyt Logo"
+                width={200}
+                height={200}
+              />
+            ) : (
+              <Image
+                src="/assets/freytFullLogo.png"
+                alt="Freyt Logo"
+                width={100}
+                height={100}
+                className="mx-6 my-3"
+              />
+            )}
+          </Link>
+        </div>
 
         {navItems.map(({ label, href, icon, isActive }) => (
           <Link

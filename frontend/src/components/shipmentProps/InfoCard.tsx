@@ -9,6 +9,7 @@ type InfoCardProps = {
   breakdown?: Record<string, number>;
   percentage?: number;
   diffAmount?: number;
+  showPercentage?: boolean;
 };
 
 const InfoCard = ({
@@ -17,8 +18,8 @@ const InfoCard = ({
   breakdown,
   percentage,
   diffAmount,
+  showPercentage,
 }: InfoCardProps) => {
-  const [showPercentage, setShowPercentage] = useState(true); // default to % view
   console.log(diffAmount);
   return (
     <motion.div
@@ -34,8 +35,8 @@ const InfoCard = ({
               className={`text-sm ${
                 (showPercentage ? percentage : diffAmount) !== undefined &&
                 (showPercentage ? percentage! : diffAmount!) >= 0
-                  ? "text-green-500"
-                  : "text-red-500"
+                  ? "text-positive"
+                  : "text-negative"
               }`}
             >
               {showPercentage && percentage !== undefined && (

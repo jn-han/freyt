@@ -1,41 +1,81 @@
 "use client";
 
-import ShipmentCards from "@/components/ShipmentCards";
+import ShipmentInfoSection from "@/components/shipmentProps/ShipmentInfoSection";
 import { useEffect, useState } from "react";
 import React from "react";
 import Link from "next/link";
-import ShipmentMetricCard from "@/components/InfoCard";
+import { ShipmentData, DataPoint } from "@/types/shipment";
+import InfoCardSkeleton from "@/components/shipmentProps/InfoCardSkeleton";
 
-export interface ShipmentData {
-  _id?: string;
-  date: string;
-  storeNumber: string;
-  dc: "DC01" | "DC03";
-  Projected: {
-    units: number;
-    hours: number;
-    uph: number;
-  };
-  Actual?: {
-    units: number;
-    hours: number;
-    uph: number | null;
-  };
-}
+import Chart from "@/components/data/Chart";
+import KPIChartCard from "@/components/data/KPIChartCard";
+
+const mockSalesData = [
+  { name: "2025-03-30", value: 14000 },
+  { name: "2025-03-31", value: 19000 },
+  { name: "2025-04-01", value: 20000 },
+  { name: "2025-04-02", value: 21000 },
+  { name: "2025-04-03", value: 12000 },
+  { name: "2025-04-04", value: 18000 },
+  { name: "2025-04-05", value: 15000 },
+];
 
 const Dashboard = () => {
   const [shipments, setShipments] = useState<ShipmentData[] | null>(null);
+  const [allShipments, setAllShipments] = useState<ShipmentData[] | null>(null);
+
+  const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState<string>("");
-  const [unitDiff, setUnitDiff] = useState(0);
-  const [hourDiff, setHourDiff] = useState(0);
-  const [uphDiff, setUphDiff] = useState(0);
 
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() - 1);
   const todayDateString = new Date().toLocaleDateString("sv-SE");
+
+  const fetchAllShipments = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/shipments");
+      if (!res.ok) throw new Error("Failed to fetch all shipments");
+      const data: ShipmentData[] = await res.json();
+      setAllShipments(data);
+    } catch (err) {
+      console.error("Error fetching all shipments:", err);
+    }
+  };
+
+  const formatChartData = (shipments: ShipmentData[]): DataPoint[] => {
+    // group by date, sum units & hours, average UPH
+    const grouped: Record<string, { totalUnits: number; totalHours: number }> =
+      {};
+
+    for (const s of shipments) {
+      const key = new Date(s.date).toISOString().split("T")[0];
+      const units = s.Actual?.units ?? s.Projected.units;
+      const hours = s.Actual?.hours ?? s.Projected.hours;
+
+      if (!grouped[key]) {
+        grouped[key] = { totalUnits: 0, totalHours: 0 };
+      }
+
+      grouped[key].totalUnits += units;
+      grouped[key].totalHours += hours;
+    }
+
+    return Object.entries(grouped).map(
+      ([date, { totalUnits, totalHours }]) => ({
+        name: date,
+        value: parseFloat((totalUnits / totalHours).toFixed(1)),
+      })
+    );
+  };
+
+  const chartData = formatChartData(allShipments ?? []).sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
+
   const fetchShipment = async () => {
-    console.log(todayDateString);
+    setLoading(true);
+
     try {
       const res = await fetch(
         `http://localhost:8080/shipments/${todayDateString}`
@@ -45,16 +85,17 @@ const Dashboard = () => {
         const { message } = await res.json();
         setShipments(null);
         setError(message || "No shipment found for today.");
-        return;
+      } else {
+        const data: ShipmentData[] = await res.json();
+        setShipments(data);
+        setError("");
       }
-
-      const data: ShipmentData[] = await res.json();
-      setShipments(data);
-      setError("");
     } catch (err) {
       console.error(err);
       setError("Failed to fetch shipment");
       setShipments(null);
+    } finally {
+      setLoading(false); // ✅ Done loading regardless of success or error
     }
   };
 
@@ -73,13 +114,6 @@ const Dashboard = () => {
       0
     );
 
-    // Percentage Diffs
-    const unitChange =
-      projUnits !== 0 ? ((actUnits - projUnits) / projUnits) * 100 : 0;
-
-    const hourChange =
-      projHours !== 0 ? ((actHours - projHours) / projHours) * 100 : 0;
-
     const uphProjected = projHours > 0 ? projUnits / projHours : 0;
     const uphActual = actHours > 0 ? actUnits / actHours : 0;
 
@@ -87,19 +121,16 @@ const Dashboard = () => {
       uphProjected !== 0
         ? ((uphActual - uphProjected) / uphProjected) * 100
         : 0;
-
-    setUnitDiff(parseFloat(unitChange.toFixed(1)));
-    setHourDiff(parseFloat(hourChange.toFixed(1)));
-    setUphDiff(parseFloat(uphChange.toFixed(1)));
   }, [shipments]);
 
   useEffect(() => {
     fetchShipment();
+    fetchAllShipments();
   }, []);
 
   return (
-    <div className="px-36 py-20">
-      <div className="mb-5">
+    <div className="px-36 py-20 flex flex-col gap-3">
+      <div className="">
         <h1 className="text-md font-semibold">Store: 1007</h1>
         <h1 className="text-4xl font-bold">Dashboard</h1>
       </div>
@@ -114,13 +145,18 @@ const Dashboard = () => {
       </div>
 
       <div className="flex flex-col gap-3 mt-6">
-        {shipments ? (
+        {loading ? (
+          <>
+            <InfoCardSkeleton />
+            <InfoCardSkeleton />
+          </>
+        ) : shipments ? (
           <>
             <div className="flex-1">
-              <ShipmentCards isProjected shipments={shipments} />
+              <ShipmentInfoSection isProjected shipments={shipments} />
             </div>
             <div className="flex-1">
-              <ShipmentCards shipments={shipments} />
+              <ShipmentInfoSection shipments={shipments} />
             </div>
           </>
         ) : (
@@ -128,6 +164,25 @@ const Dashboard = () => {
             {error || "No shipment data for today yet."}
           </div>
         )}
+      </div>
+      <h1 className="text-2xl font-bold">Performance</h1>
+      <div className="flex flex-row mt-4 gap-7">
+        <KPIChartCard
+          title="Sales KPIs"
+          label="This Week"
+          metricType="sales"
+          goal={20000}
+          changeClassName="text-positive"
+          data={mockSalesData}
+        />
+        <KPIChartCard
+          title="UPH Over Time"
+          metricType="uph"
+          goal={76}
+          label="Most Recent"
+          changeClassName="text-positive"
+          data={chartData}
+        />
       </div>
     </div>
   );

@@ -21,10 +21,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased flex overflow-x-hidden`}>
+      <body
+        className={`${inter.variable} antialiased`}
+        style={{ overflowX: "hidden" }}
+      >
         <SidebarProvider>
-          <Sidebar />
-          <main className="flex-1 w-full h-screen">{children}</main>
+          <div className="flex min-h-screen">
+            <Sidebar />
+            <main className="flex-1 h-screen overflow-y-auto">{children}</main>
+          </div>
         </SidebarProvider>
       </body>
     </html>
