@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import Taskbar from "../components/Sidebar";
-
+import Sidebar from "../components/Sidebar";
+import { SidebarProvider } from "@/context/SidebarContext";
 import "./globals.css";
 
 const inter = Inter({
@@ -22,8 +22,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} antialiased flex overflow-x-hidden`}>
-        <Taskbar />
-        <main className="flex-1  w-full h-screen">{children}</main>
+        <SidebarProvider>
+          <Sidebar />
+          <main className="flex-1 w-full h-screen">{children}</main>
+        </SidebarProvider>
       </body>
     </html>
   );

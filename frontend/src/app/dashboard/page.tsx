@@ -32,9 +32,8 @@ const Dashboard = () => {
   const [uphDiff, setUphDiff] = useState(0);
 
   const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const todayDateString = new Date().toISOString().split("T")[0];
-
+  tomorrow.setDate(tomorrow.getDate() - 1);
+  const todayDateString = new Date().toLocaleDateString("sv-SE");
   const fetchShipment = async () => {
     console.log(todayDateString);
     try {
@@ -105,7 +104,7 @@ const Dashboard = () => {
         <h1 className="text-4xl font-bold">Dashboard</h1>
       </div>
       <div className="w-full flex flex-row justify-between items-center">
-        <h1 className="text-2xl font-semibold">Today's Shipment</h1>
+        <h1 className="text-2xl font-semibold">Shipment</h1>
         <Link
           href="/createShipment"
           className="bg-btn-avail px-3 py-2 rounded-xl text-white text-sm"
