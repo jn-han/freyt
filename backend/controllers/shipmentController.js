@@ -31,33 +31,87 @@ export const createShipment = async (req, res) => {
   }
 };
 
+export const deleteShipmentByDate = async (req, res) => {
+  const { date } = req.params;
+
+  try {
+    const baseDate = new Date(`${date}T00:00:00.000Z`);
+
+    const startOfDay = new Date(baseDate);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(baseDate);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    console.log("Deleting between:", startOfDay, "and", endOfDay);
+
+    const result = await Shipment.deleteMany({
+      date: { $gte: startOfDay, $lte: endOfDay },
+    });
+
+    if (result.deletedCount === 0) {
+      return res
+        .status(404)
+        .json({ message: "No shipments found for this date" });
+    }
+
+    res
+      .status(200)
+      .json({ message: `Deleted ${result.deletedCount} shipment(s)` });
+  } catch (err) {
+    console.error("Delete error:", err);
+    res.status(500).json({ message: "Server error during deletion" });
+  }
+};
+
+export const createManyShipments = async (req, res) => {
+  const shipments = req.body;
+
+  if (!Array.isArray(shipments) || shipments.length === 0) {
+    return res.status(400).json({ message: "No shipments provided" });
+  }
+
+  for (const s of shipments) {
+    if (!s.date || !s.storeNumber || !s.dc || !s.Projected) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+  }
+
+  try {
+    const result = await Shipment.insertMany(shipments);
+    res.status(201).json({ message: `Inserted ${result.length} shipments` });
+  } catch (error) {
+    console.error("Error inserting shipments:", error);
+    res.status(500).json({ message: "Bulk insert failed" });
+  }
+};
+
 export const getShipmentByDate = async (req, res) => {
   const { date } = req.params;
 
   try {
-    // Convert string to Date object
-    const targetDate = new Date(date);
+    const baseDate = new Date(`${date}T00:00:00.000Z`);
 
-    // Find shipments that match the *exact* date (time-sensitive)
-    // If your date field has time, this may not work exactly — see below for a range-based option
-    const shipment = await Shipment.findOne({
-      date: {
-        $gte: new Date(targetDate.setHours(0, 0, 0, 0)),
-        $lt: new Date(targetDate.setHours(24, 0, 0, 0)),
-      },
+    const startOfDay = new Date(baseDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(baseDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const shipments = await Shipment.find({
+      date: { $gte: startOfDay, $lte: endOfDay },
     });
 
-    if (!shipment) {
-      return res.status(404).json({ message: "Shipment not found" });
+    if (!shipments.length) {
+      return res.status(404).json({ message: "No shipments found" });
     }
 
-    res.status(200).json(shipment);
+    res.status(200).json(shipments);
   } catch (error) {
-    console.error("Error fetching shipment by date:", error);
-    res.status(500).json({ message: "Failed to fetch shipment" });
+    console.error("Error fetching shipments by date:", error);
+    res.status(500).json({ message: "Failed to fetch shipments" });
   }
 };
-
 // Get all shipments
 export const getShipments = async (req, res) => {
   try {
