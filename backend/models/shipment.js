@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 // Subschema for Projected items
-const projectedItemSchema = new mongoose.Schema({
+const projectedSchema = new mongoose.Schema({
   units: { type: Number, required: true },
   hours: { type: Number, required: true },
   uph: {
@@ -14,31 +14,58 @@ const projectedItemSchema = new mongoose.Schema({
 });
 
 // Subschema for Actual items
-const actualItemSchema = new mongoose.Schema({
+const actualSchema = new mongoose.Schema({
   units: { type: Number, required: true },
   hours: { type: Number, required: true },
   uph: {
     type: Number,
     default: null,
   },
+  allocation: { type: Number, required: true },
+  replenishment: { type: Number, required: true },
+  ct: { type: Number, required: true },
+  psa: { type: Number, required: true },
 });
 
+const updateSchema = new mongoose.Schema(
+  {
+    date: { type: Date, required: true },
+    in_box: { type: Number, required: true },
+    on_mws: { type: Number, required: true },
+    to_steam: { type: Number, required: true },
+    allo: { type: Number, required: true },
+    rep: { type: Number, required: true },
+    hours_used: { type: Number, required: true },
+    distributed_running: { type: Number, required: true },
+    end_time: { type: Date, required: true },
+  },
+  { timestamps: true }
+);
+
 // Main Shipment schema
-const shipmentSchema = new mongoose.Schema({
-  date: { type: Date, required: true },
-  storeNumber: { type: String, required: true },
-  dc: {
-    type: String,
-    required: true,
-    enum: ["DC01", "DC03"], // ✅ Enum constraint
+export const shipmentSchema = new mongoose.Schema(
+  {
+    date: { type: Date, required: true },
+    storeNumber: { type: String, required: true },
+    dc: {
+      type: String,
+      required: true,
+      enum: ["DC01", "DC03"],
+    },
+    Projected: projectedSchema,
+    Actual: {
+      type: actualSchema,
+      required: false,
+      default: undefined,
+    },
+    updates: [updateSchema],
+    steamBuffer: { type: Number, required: true },
+    roster: [{ type: mongoose.Schema.Types.ObjectId, ref: "Employee" }],
   },
-  Projected: projectedItemSchema,
-  Actual: {
-    type: actualItemSchema,
-    required: false,
-    default: undefined,
-  },
-});
+  {
+    timestamps: true,
+  }
+);
 
 // Pre-save hook: calculate/round UPH
 shipmentSchema.pre("save", function (next) {
@@ -56,7 +83,6 @@ shipmentSchema.pre("save", function (next) {
     }
   }
 
-  // ✅ Round UPH to 1 decimal place
   if (this.Projected && typeof this.Projected.uph === "number") {
     this.Projected.uph = parseFloat(this.Projected.uph.toFixed(1));
   }
