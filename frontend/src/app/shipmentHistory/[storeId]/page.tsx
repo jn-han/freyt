@@ -2,11 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 
 interface Shipment {
   _id: string;
   date: string;
-  storeNumber: string;
+  store: string;
   dc: "DC01" | "DC03";
   Projected: {
     units: number;
@@ -42,13 +43,18 @@ interface AggregatedShipment {
 }
 
 const ShipmentHistory = () => {
+  const { storeId } = useParams() as { storeId: string };
+
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchShipments = async () => {
     try {
-      const response = await fetch("http://localhost:8080/shipments");
-      const data = await response.json();
+      const res = await fetch(
+        `http://localhost:8080/stores/${storeId}/shipments`
+      );
+      if (!res.ok) throw new Error("Failed to fetch shipments");
+      const data = await res.json();
       setShipments(data);
     } catch (err) {
       console.error("Fetch error:", err);
@@ -58,16 +64,17 @@ const ShipmentHistory = () => {
   };
 
   const deleteByDate = async (isoDate: string) => {
-    // Normalize to YYYY-MM-DD
     const date = new Date(isoDate).toISOString().split("T")[0];
-
     const confirmed = window.confirm(`Delete shipments for ${date}?`);
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`http://localhost:8080/shipments/${date}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `http://localhost:8080/stores/${storeId}/shipments/${date}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!res.ok) throw new Error("Failed to delete");
 
@@ -80,9 +87,10 @@ const ShipmentHistory = () => {
       alert("Delete failed");
     }
   };
+
   useEffect(() => {
-    fetchShipments();
-  }, []);
+    if (storeId) fetchShipments();
+  }, [storeId]);
 
   const aggregate = (): AggregatedShipment[] => {
     const map: Record<string, AggregatedShipment> = {};
@@ -142,7 +150,9 @@ const ShipmentHistory = () => {
 
   return (
     <div className="px-36 py-20">
-      <h1 className="text-3xl font-semibold mb-6">Shipment History</h1>
+      <h1 className="text-3xl font-semibold mb-6">
+        Shipment History for Store {storeId}
+      </h1>
       <div className="flex flex-col gap-4">
         {aggregated.map((entry) => (
           <div
@@ -155,9 +165,9 @@ const ShipmentHistory = () => {
             >
               X
             </button>
-            <Link href={`./shipment/${entry.date}`}>
+            <Link href={`/shipments/${storeId}/${entry.date}`}>
               <h2 className="text-xl font-semibold mb-2 hover:underline">
-                {entry.date.slice(0, 10)}
+                {entry.date}
               </h2>
             </Link>
             <div className="space-y-1">

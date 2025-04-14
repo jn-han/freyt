@@ -1,13 +1,11 @@
 "use client";
 
+import { useParams, useRouter } from "next/navigation";
 import ShipmentInfoSection from "@/components/shipmentProps/ShipmentInfoSection";
 import { useEffect, useState } from "react";
-import React from "react";
 import Link from "next/link";
 import { ShipmentData, DataPoint } from "@/types/shipment";
 import InfoCardSkeleton from "@/components/shipmentProps/InfoCardSkeleton";
-
-import Chart from "@/components/data/Chart";
 import KPIChartCard from "@/components/data/KPIChartCard";
 
 const mockSalesData = [
@@ -21,20 +19,59 @@ const mockSalesData = [
 ];
 
 const Dashboard = () => {
-  const [shipments, setShipments] = useState<ShipmentData[] | null>(null);
-  const [allShipments, setAllShipments] = useState<ShipmentData[] | null>(null);
+  const { storeId } = useParams() as { storeId: string };
 
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState<string>("");
 
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() - 1);
-  const todayDateString = new Date().toLocaleDateString("sv-SE");
+  // Check if the store exists or not
+  const [storeValid, setStoreValid] = useState<boolean | null>(null);
 
+  const checkStoreExists = async () => {
+    try {
+      const res = await fetch(`http://localhost:8080/stores/${storeId}`);
+      if (!res.ok) throw new Error("Store not found");
+      setStoreValid(true);
+    } catch (err) {
+      console.error("Invalid store ID:", err);
+      setStoreValid(false);
+    }
+  };
+
+  // Getting today's Shipment
+  const [shipments, setShipments] = useState<ShipmentData[] | null>(null);
+  const todayDateString = new Date().toLocaleDateString("sv-SE");
+  const fetchShipment = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `http://localhost:8080/stores/${storeId}/shipments/${todayDateString}`
+      );
+      if (!res.ok) {
+        const { message } = await res.json();
+        setShipments(null);
+        setError(message || "No shipment found for today.");
+      } else {
+        const data: ShipmentData[] = await res.json();
+        setShipments(data);
+        setError("");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to fetch shipment");
+      setShipments(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Getting all shipments for analysis
+  const [allShipments, setAllShipments] = useState<ShipmentData[] | null>(null);
   const fetchAllShipments = async () => {
     try {
-      const res = await fetch("http://localhost:8080/shipments");
+      const res = await fetch(
+        `http://localhost:8080/stores/${storeId}/shipments`
+      );
       if (!res.ok) throw new Error("Failed to fetch all shipments");
       const data: ShipmentData[] = await res.json();
       setAllShipments(data);
@@ -42,21 +79,15 @@ const Dashboard = () => {
       console.error("Error fetching all shipments:", err);
     }
   };
-
+  // Formatting Chart Data
   const formatChartData = (shipments: ShipmentData[]): DataPoint[] => {
-    // group by date, sum units & hours, average UPH
     const grouped: Record<string, { totalUnits: number; totalHours: number }> =
       {};
-
     for (const s of shipments) {
       const key = new Date(s.date).toISOString().split("T")[0];
       const units = s.Actual?.units ?? s.Projected.units;
       const hours = s.Actual?.hours ?? s.Projected.hours;
-
-      if (!grouped[key]) {
-        grouped[key] = { totalUnits: 0, totalHours: 0 };
-      }
-
+      if (!grouped[key]) grouped[key] = { totalUnits: 0, totalHours: 0 };
       grouped[key].totalUnits += units;
       grouped[key].totalHours += hours;
     }
@@ -73,71 +104,53 @@ const Dashboard = () => {
     a.name.localeCompare(b.name)
   );
 
-  const fetchShipment = async () => {
-    setLoading(true);
-
-    try {
-      const res = await fetch(
-        `http://localhost:8080/shipments/${todayDateString}`
-      );
-
-      if (!res.ok) {
-        const { message } = await res.json();
-        setShipments(null);
-        setError(message || "No shipment found for today.");
-      } else {
-        const data: ShipmentData[] = await res.json();
-        setShipments(data);
-        setError("");
-      }
-    } catch (err) {
-      console.error(err);
-      setError("Failed to fetch shipment");
-      setShipments(null);
-    } finally {
-      setLoading(false); // ✅ Done loading regardless of success or error
-    }
-  };
+  useEffect(() => {
+    if (!storeId) return;
+    checkStoreExists();
+  }, [storeId]);
 
   useEffect(() => {
-    if (!shipments || shipments.length === 0) return;
-
-    // Totals
-    const projUnits = shipments.reduce((sum, s) => sum + s.Projected.units, 0);
-    const projHours = shipments.reduce((sum, s) => sum + s.Projected.hours, 0);
-    const actUnits = shipments.reduce(
-      (sum, s) => sum + (s.Actual?.units || 0),
-      0
-    );
-    const actHours = shipments.reduce(
-      (sum, s) => sum + (s.Actual?.hours || 0),
-      0
-    );
-
-    const uphProjected = projHours > 0 ? projUnits / projHours : 0;
-    const uphActual = actHours > 0 ? actUnits / actHours : 0;
-
-    const uphChange =
-      uphProjected !== 0
-        ? ((uphActual - uphProjected) / uphProjected) * 100
-        : 0;
-  }, [shipments]);
-
-  useEffect(() => {
+    if (!storeValid) return;
     fetchShipment();
     fetchAllShipments();
-  }, []);
+  }, [storeValid]);
 
+  if (storeValid === false) {
+    return (
+      <div className="px-36 py-20 text-center">
+        <h1 className="text-3xl font-bold text-red-600">Invalid Store</h1>
+        <p className="text-gray-600 mt-2">
+          The store ID <code>{storeId}</code> does not exist or is not
+          registered.
+        </p>
+        <Link
+          href="/"
+          className="mt-4 inline-block text-blue-600 underline text-sm"
+        >
+          Go back to store selection
+        </Link>
+      </div>
+    );
+  }
+
+  if (storeValid === null) {
+    return (
+      <div className="px-36 py-20 text-center text-gray-600">
+        Validating store access...
+      </div>
+    );
+  }
   return (
     <div className="px-36 py-20 flex flex-col gap-3">
-      <div className="">
-        <h1 className="text-md font-semibold">Store: 1007</h1>
+      <div>
+        <h1 className="text-md font-semibold">Store: {storeId}</h1>
         <h1 className="text-4xl font-bold">Dashboard</h1>
       </div>
+
       <div className="w-full flex flex-row justify-between items-center">
         <h1 className="text-2xl font-semibold">Shipment</h1>
         <Link
-          href="/createShipment"
+          href={`/createShipment?store=${storeId}`}
           className="bg-btn-avail px-3 py-2 rounded-xl text-white text-sm"
         >
           Add Shipment Information
@@ -165,6 +178,7 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+
       <h1 className="text-2xl font-bold">Performance</h1>
       <div className="flex flex-row mt-4 gap-7">
         <KPIChartCard

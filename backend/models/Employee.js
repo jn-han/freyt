@@ -2,12 +2,15 @@ import mongoose from "mongoose";
 
 const employeeSchema = new mongoose.Schema(
   {
+    _id: { type: String, required: true },
     first_name: { type: String, required: true },
     last_name: { type: String, required: true },
-    position: { type: String, required: true },
-
+    position: {
+      type: String,
+      enum: ["Management", "Senior Associate", "Associate", "Seasonal"],
+      required: true,
+    },
     homeStore: { type: String, ref: "Store", required: true },
-    activeStores: [{ type: String, ref: "Store" }], // optional list of stores they can work at
   },
   {
     timestamps: true,

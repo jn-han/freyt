@@ -46,7 +46,11 @@ const updateSchema = new mongoose.Schema(
 export const shipmentSchema = new mongoose.Schema(
   {
     date: { type: Date, required: true },
-    storeNumber: { type: String, required: true },
+    store: {
+      type: String,
+      ref: "Store",
+      required: true,
+    },
     dc: {
       type: String,
       required: true,
@@ -58,7 +62,11 @@ export const shipmentSchema = new mongoose.Schema(
       required: false,
       default: undefined,
     },
-    updates: [updateSchema],
+    updates: {
+      type: [updateSchema],
+      required: false,
+      default: [],
+    },
     steamBuffer: { type: Number, required: true },
     roster: [{ type: mongoose.Schema.Types.ObjectId, ref: "Employee" }],
   },

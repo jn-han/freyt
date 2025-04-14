@@ -5,9 +5,17 @@ import {
   getShipmentByDate,
   deleteShipmentByDate,
   createManyShipments,
+  createManyShipmentsForStore,
 } from "../controllers/shipmentController.js";
 
 const router = express.Router();
+
+//-----STORE SPECIFIC-----
+router.post("/shipments/bulk", createManyShipments);
+
+router.post("/stores/:storeId/shipments/bulk", createManyShipmentsForStore);
+
+//-----GLOBAL-----
 
 // GET /shipments - fetch all
 router.get("/", getShipments);
@@ -20,7 +28,5 @@ router.post("/", createShipment);
 
 // DELETE shipment by date (YYYY-MM-DD)
 router.delete("/:date", deleteShipmentByDate);
-
-router.post("/batch", createManyShipments);
 
 export default router;

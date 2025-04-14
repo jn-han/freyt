@@ -1,7 +1,7 @@
 export interface ShipmentData {
   _id?: string;
   date: string;
-  storeNumber: string;
+  store: string;
   dc: "DC01" | "DC03";
   Projected: {
     units: number;

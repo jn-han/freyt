@@ -9,7 +9,7 @@ import InfoCardSkeleton from "@/components/shipmentProps/InfoCardSkeleton";
 export interface ShipmentData {
   _id?: string;
   date: string;
-  storeNumber: string;
+  store: string;
   dc: "DC01" | "DC03";
   Projected: {
     units: number;
@@ -24,16 +24,19 @@ export interface ShipmentData {
 }
 
 const ShipmentPage = () => {
-  const shipmentDate = useParams()?.shipmentDate as string;
+  const params = useParams();
+  const storeId = params?.storeId as string;
+  const shipmentDate = params?.shipmentDate as string;
+
   const [shipments, setShipments] = useState<ShipmentData[] | null>(null);
   const [error, setError] = useState("");
 
   const fetchShipment = async () => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // fake load
 
       const res = await fetch(
-        `http://localhost:8080/shipments/${shipmentDate}`
+        `http://localhost:8080/stores/${storeId}/shipments/${shipmentDate}`
       );
       if (!res.ok) {
         const { message } = await res.json();
@@ -44,22 +47,26 @@ const ShipmentPage = () => {
       const data: ShipmentData[] = await res.json();
       setShipments(data);
     } catch (err) {
-      console.error(err);
+      console.error("Fetch error:", err);
       setError("Failed to fetch shipment");
       setShipments(null);
     }
   };
 
   useEffect(() => {
-    if (shipmentDate) fetchShipment();
-  }, [shipmentDate]);
+    if (storeId && shipmentDate) {
+      fetchShipment();
+    }
+  }, [storeId, shipmentDate]);
+
+  const todayString = new Date().toLocaleDateString("sv-SE");
 
   return (
     <div className="px-36 py-20">
       <div className="mb-5">
-        <h1 className="text-md font-semibold">Store: 1007</h1>
+        <h1 className="text-md font-semibold">Store: {storeId}</h1>
         <h1 className="text-4xl font-bold">
-          {shipmentDate === new Date().toLocaleDateString("sv-SE")
+          {shipmentDate === todayString
             ? "Today's Shipment"
             : `Shipment for ${shipmentDate}`}
         </h1>
@@ -68,7 +75,7 @@ const ShipmentPage = () => {
       <div className="w-full flex flex-row justify-between items-center">
         <h1 className="text-2xl font-semibold">Details</h1>
         <Link
-          href="/createShipment"
+          href={`/createShipment?store=${storeId}`}
           className="bg-btn-avail px-3 py-2 rounded-xl text-white text-sm"
         >
           Add Shipment
@@ -76,25 +83,23 @@ const ShipmentPage = () => {
       </div>
 
       <div className="flex flex-col gap-3 mt-6">
-        <div className="flex flex-col gap-3 mt-6">
-          {shipments ? (
-            <>
-              <div className="flex-1">
-                <ShipmentInfoSection isProjected shipments={shipments} />
-              </div>
-              <div className="flex-1">
-                <ShipmentInfoSection shipments={shipments} />
-              </div>
-            </>
-          ) : error ? (
-            <div className="text-gray-600 italic mt-4">{error}</div>
-          ) : (
-            <>
-              <InfoCardSkeleton />
-              <InfoCardSkeleton />
-            </>
-          )}
-        </div>
+        {shipments ? (
+          <>
+            <div className="flex-1">
+              <ShipmentInfoSection isProjected shipments={shipments} />
+            </div>
+            <div className="flex-1">
+              <ShipmentInfoSection shipments={shipments} />
+            </div>
+          </>
+        ) : error ? (
+          <div className="text-gray-600 italic mt-4">{error}</div>
+        ) : (
+          <>
+            <InfoCardSkeleton />
+            <InfoCardSkeleton />
+          </>
+        )}
       </div>
     </div>
   );

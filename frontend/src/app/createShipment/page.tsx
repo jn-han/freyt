@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FormEvent, useState } from "react";
+import React, { FormEvent, useState, useEffect } from "react";
 
 const CreateShipmentPage = () => {
   const [date, setDate] = useState("");
@@ -10,6 +10,11 @@ const CreateShipmentPage = () => {
   const [projected, setProjected] = useState({ units: "", hours: "" });
   const [actual, setActual] = useState({ units: "", hours: "" });
   const [includeActual, setIncludeActual] = useState(false);
+
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roster, setRoster] = useState<string[]>([]);
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -41,6 +46,9 @@ const CreateShipmentPage = () => {
         hours: Number(actual.hours),
       };
     }
+    if (roster.length > 0) {
+      formattedShipment.roster = roster;
+    }
 
     try {
       const res = await fetch("http://localhost:8080/shipments", {
@@ -67,6 +75,21 @@ const CreateShipmentPage = () => {
       alert("Something went wrong!");
     }
   };
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const res = await fetch("http://localhost:8080/employees");
+        const data = await res.json();
+        setEmployees(data);
+      } catch (err) {
+        console.error("Error fetching employees", err);
+      }
+    };
+
+    fetchEmployees();
+  }, []);
+
   return (
     <div className="max-w-xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">Create New Shipment</h1>
@@ -171,6 +194,52 @@ const CreateShipmentPage = () => {
             </div>
           </div>
         )}
+
+        <div>
+          <h2 className="font-semibold mb-2">Add Employees to Roster</h2>
+          <input
+            type="text"
+            placeholder="Search by name or ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="border px-3 py-2 w-full rounded mb-2"
+          />
+          <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1">
+            {employees
+              .filter((emp) =>
+                `${emp.first_name} ${emp.last_name} ${emp._id}`
+                  .toLowerCase()
+                  .includes(searchTerm.toLowerCase())
+              )
+              .map((emp) => (
+                <div
+                  key={emp._id}
+                  className="flex justify-between items-center px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 cursor-pointer"
+                  onClick={() => {
+                    if (!roster.includes(emp._id)) {
+                      setRoster([...roster, emp._id]);
+                    }
+                  }}
+                >
+                  <span>
+                    {emp.first_name} {emp.last_name}
+                  </span>
+                  <span className="text-sm text-gray-500">{emp._id}</span>
+                </div>
+              ))}
+          </div>
+
+          {roster.length > 0 && (
+            <div className="mt-3">
+              <h3 className="text-sm font-medium mb-1">Selected Roster:</h3>
+              <ul className="text-sm list-disc list-inside">
+                {roster.map((id) => (
+                  <li key={id}>{id}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
 
         <button
           type="submit"

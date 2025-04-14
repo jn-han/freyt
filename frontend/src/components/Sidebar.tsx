@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React from "react";
+import { useParams } from "next/navigation";
 import {
   House,
   ChartColumnBig,
@@ -11,9 +12,19 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "@/context/SidebarContext";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 
 const Sidebar = () => {
+  const routerParams = useParams();
+  const [storeId, setStoreId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const routerStore = routerParams?.storeId as string | undefined;
+    const localStore = localStorage.getItem("storeId");
+    setStoreId(routerStore || localStore);
+  }, [routerParams]);
+
   const pathName = usePathname();
   const todayDateString = new Date().toLocaleDateString("sv-SE");
 
@@ -22,31 +33,31 @@ const Sidebar = () => {
   const navItems = [
     {
       label: "Dashboard",
-      href: "/dashboard",
+      href: `/dashboard/${storeId}`,
       icon: <House />,
       isActive: pathName === "/dashboard",
     },
     {
       label: "Today's Shipment",
-      href: `/shipment/${todayDateString}`,
+      href: `/shipments/${storeId}/${todayDateString}`,
       icon: <Box />,
       isActive: pathName.startsWith("/shipment/"),
     },
     {
       label: "Shipment History",
-      href: "/shipmentHistory",
+      href: `/shipmentHistory/${storeId}`,
       icon: <History />,
       isActive: pathName === "/shipmentHistory",
     },
     {
       label: "Store Performance",
-      href: "/storePerformance",
+      href: `/storePerformance/${storeId}`,
       icon: <ChartColumnBig />,
       isActive: pathName === "/storePerformance",
     },
     {
       label: "Roster",
-      href: "/roster",
+      href: `/roster/${storeId}`,
       icon: <History />,
       isActive: pathName === "/roster",
     },
